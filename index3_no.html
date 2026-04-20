@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NLE · OWAS 분석 전용 툴 — KOSHA H-9-2018</title>
+<style>
+:root{
+  --accent:#2e7d32;--accent2:#1b5e20;
+  --green:#188038;--yellow:#f9ab00;--orange:#e37400;--red:#c5221f;
+  --bg:#f1f3f4;--panel:#fff;--border:#dadce0;--mono:'Courier New',monospace;
+  --text:#202124;--muted:#5f6368;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);font-size:13px;}
+.hdr{background:linear-gradient(135deg,#1b5e20,#2e7d32);color:#fff;
+  padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+.hdr-title{font-size:18px;font-weight:700;}
+.hdr-sub{font-size:11px;opacity:.8;margin-top:3px;}
+.hdr-badge{background:rgba(255,255,255,.2);padding:4px 12px;border-radius:20px;
+  font-family:var(--mono);font-size:10px;}
+.container{max-width:1100px;margin:0 auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.card{background:var(--panel);border-radius:10px;border:1px solid var(--border);overflow:hidden;}
+.card-hd{padding:12px 16px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border);}
+.card-body{padding:16px;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;}
+.field input,.field select{width:100%;padding:8px 10px;border:1.5px solid var(--border);
+  border-radius:6px;font-size:13px;font-family:inherit;outline:none;transition:.2s;}
+.field input:focus,.field select:focus{border-color:var(--accent);}
+.field .hint{font-size:10px;color:var(--muted);margin-top:3px;}
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.slider-row label{font-size:11px;color:var(--muted);width:130px;flex-shrink:0;font-weight:600;}
+.slider-row input[type=range]{flex:1;}
+.slider-val{font-family:var(--mono);font-size:13px;font-weight:700;min-width:55px;text-align:right;}
+.score-card{text-align:center;padding:20px;border-radius:10px;border:2px solid var(--border);}
+.score-num{font-family:var(--mono);font-size:52px;font-weight:800;line-height:1;}
+.score-label{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:1px;}
+.score-badge{display:inline-block;margin-top:8px;padding:4px 16px;border-radius:20px;
+  font-size:12px;font-weight:700;}
+.c1{color:#188038;}.c2{color:#f9ab00;}.c3{color:#e37400;}.c4{color:#c5221f;}
+.bg1{background:#e6f4ea;border-color:#188038;}
+.bg2{background:#fef7e0;border-color:#f9ab00;}
+.bg3{background:#fce8e6;border-color:#e37400;}
+.bg4{background:#fce8e6;border-color:#c5221f;}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{background:#f8f9fa;padding:8px 10px;border:1px solid var(--border);
+  font-weight:600;text-align:center;font-size:11px;}
+.tbl td{padding:8px 10px;border:1px solid var(--border);text-align:center;}
+.result-box{background:#f8f9fa;border-radius:8px;padding:14px;margin-top:12px;
+  border-left:4px solid var(--accent);}
+.result-row{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;border-bottom:1px solid var(--border);}
+.result-row:last-child{border:none;}
+.result-key{font-size:11px;color:var(--muted);}
+.result-val{font-family:var(--mono);font-size:13px;font-weight:700;}
+.section-title{font-size:14px;font-weight:700;color:var(--accent2);
+  border-left:3px solid var(--accent);padding-left:10px;margin-bottom:12px;}
+.prog-wrap{margin-top:8px;}
+.prog-label{font-size:10px;color:var(--muted);margin-bottom:3px;
+  display:flex;justify-content:space-between;}
+.prog-track{height:8px;background:#f1f3f4;border-radius:4px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:4px;transition:.4s;}
+.owas-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.owas-btn{padding:10px 6px;border:2px solid var(--border);border-radius:8px;
+  cursor:pointer;text-align:center;font-size:11px;font-family:inherit;background:#fff;
+  transition:.2s;line-height:1.4;}
+.owas-btn:hover{border-color:var(--accent);background:#f0f8f0;}
+.owas-btn.active{border-color:var(--accent);background:#e8f5e9;font-weight:700;}
+.owas-code{font-family:var(--mono);font-size:18px;font-weight:800;display:block;}
+.nle-factor{display:flex;align-items:center;gap:8px;padding:6px 0;
+  border-bottom:1px solid var(--border);}
+.nle-factor:last-child{border:none;}
+.nle-factor-name{width:100px;font-size:11px;color:var(--muted);flex-shrink:0;}
+.nle-factor-val{font-family:var(--mono);font-size:14px;font-weight:700;min-width:50px;}
+.nle-factor-bar{flex:1;height:6px;background:#f1f3f4;border-radius:3px;overflow:hidden;}
+.nle-factor-fill{height:100%;border-radius:3px;background:var(--accent);}
+@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="hdr-title">⚖️ NLE · OWAS 분석 전용 툴</div>
+    <div class="hdr-sub">NIOSH Lifting Equation · Ovako Working Posture Analysis — KOSHA H-9-2018</div>
+  </div>
+  <div class="hdr-badge">v1.0 · 임정택 박사과정</div>
+</div>
+
+<div class="container">
+
+  <div class="grid2">
+
+    <!-- NLE 입력 -->
+    <div class="card">
+      <div class="card-hd" style="background:#e8f5e9;">⚖️ NLE 입력 — NIOSH 들기 방정식</div>
+      <div class="card-body">
+        <div class="section-title">들기 조건 입력</div>
+
+        <div class="slider-row">
+          <label>실제 무게 L (kg)</label>
+          <input type="range" id="n_L" min="1" max="50" step="0.5" value="10"
+            oninput="syncVal2('n_L','nv_L','kg');calcNLE()"/>
+          <span class="slider-val" id="nv_L">10kg</span>
+        </div>
+
+        <div class="slider-row">
+          <label>수평거리 H (cm)</label>
+          <input type="range" id="n_H" min="25" max="63" step="1" value="35"
+            oninput="syncVal2('n_H','nv_H','cm');calcNLE()"/>
+          <span class="slider-val" id="nv_H">35cm</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px;margin-left:140px;">
+          ← 25cm(몸밀착) ~ 63cm(팔뻗음)
+        </div>
+
+        <div class="slider-row">
+          <label>수직높이 V (cm)</label>
+          <input type="range" id="n_V" min="0" max="175" step="5" value="75"
+            oninput="syncVal2('n_V','nv_V','cm');calcNLE()"/>
+          <span class="slider-val" id="nv_V">75cm</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px;margin-left:140px;">
+          ← 바닥(0) ~ 어깨위(175cm) | 허리=75cm
+        </div>
+
+        <div class="slider-row">
+          <label>수직이동 D (cm)</label>
+          <input type="range" id="n_D" min="0" max="175" step="5" value="50"
+            oninput="syncVal2('n_D','nv_D','cm');calcNLE()"/>
+          <span class="slider-val" id="nv_D">50cm</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px;margin-left:140px;">
+          ← 들기 시작 ~ 끝 높이 차이
+        </div>
+
+        <div class="slider-row">
+          <label>비대칭각도 A (°)</label>
+          <input type="range" id="n_A" min="0" max="135" step="15" value="0"
+            oninput="syncVal2('n_A','nv_A','°');calcNLE()"/>
+          <span class="slider-val" id="nv_A">0°</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:10px;margin-left:140px;">
+          ← 몸통 비틀림 각도 (정면=0°)
+        </div>
+
+        <div class="slider-row">
+          <label>빈도 F (회/분)</label>
+          <select id="n_F" onchange="calcNLE()">
+            <option value="0.2">0.2 (5분당 1회)</option>
+            <option value="0.5" selected>0.5 (2분당 1회)</option>
+            <option value="1">1 (1분당 1회)</option>
+            <option value="2">2 (분당 2회)</option>
+            <option value="3">3 (분당 3회)</option>
+            <option value="4">4 (분당 4회)</option>
+            <option value="5">5 (분당 5회)</option>
+            <option value="6">6 (분당 6회)</option>
+            <option value="7">7 (분당 7회)</option>
+            <option value="9">9 (분당 9회)</option>
+            <option value="11">11 (분당 11회)</option>
+            <option value="13">13 (분당 13회+)</option>
+          </select>
+        </div>
+
+        <div class="slider-row">
+          <label>작업 지속시간</label>
+          <select id="n_dur" onchange="calcNLE()">
+            <option value="L">1시간 미만</option>
+            <option value="M" selected>1~2시간</option>
+            <option value="H">2~8시간</option>
+          </select>
+        </div>
+
+        <div class="slider-row">
+          <label>커플링 (손잡이)</label>
+          <select id="n_CM" onchange="calcNLE()">
+            <option value="1.00">양호 (CM=1.00)</option>
+            <option value="0.95" selected>보통 (CM=0.95)</option>
+            <option value="0.90">불량 (CM=0.90)</option>
+          </select>
+        </div>
+
+        <div style="margin-top:16px;padding:12px;background:#e8f5e9;border-radius:8px;
+          font-size:11px;color:#2e7d32;">
+          <strong>💡 측정 방법</strong><br/>
+          H: 발목 중간~박스 손잡이 수평 거리 (줄자)<br/>
+          V: 바닥~들기 시작 손 높이 (줄자)<br/>
+          D: 들기 끝 손 높이 - 들기 시작 손 높이<br/>
+          A: 몸통 정면 기준 비틀림 각도
+        </div>
+      </div>
+    </div>
+
+    <!-- OWAS 입력 -->
+    <div class="card">
+      <div class="card-hd" style="background:#e8f5e9;">🦴 OWAS 입력 — 작업 자세 코드</div>
+      <div class="card-body">
+
+        <div class="section-title">허리 (Back) 코드</div>
+        <div class="owas-grid">
+          <button class="owas-btn active" id="ob_1" onclick="setOWAS('back',1)">
+            <span class="owas-code">1</span>곧은 자세
+          </button>
+          <button class="owas-btn" id="ob_2" onclick="setOWAS('back',2)">
+            <span class="owas-code">2</span>앞으로 굽힘
+          </button>
+          <button class="owas-btn" id="ob_3" onclick="setOWAS('back',3)">
+            <span class="owas-code">3</span>비틀림·옆굽힘
+          </button>
+          <button class="owas-btn" id="ob_4" onclick="setOWAS('back',4)">
+            <span class="owas-code">4</span>앞굽힘+비틀림
+          </button>
+        </div>
+
+        <div class="section-title">팔 (Arms) 코드</div>
+        <div class="owas-grid" style="grid-template-columns:repeat(3,1fr);">
+          <button class="owas-btn active" id="oa_1" onclick="setOWAS('arms',1)">
+            <span class="owas-code">1</span>양팔 어깨 아래
+          </button>
+          <button class="owas-btn" id="oa_2" onclick="setOWAS('arms',2)">
+            <span class="owas-code">2</span>한팔 어깨 위
+          </button>
+          <button class="owas-btn" id="oa_3" onclick="setOWAS('arms',3)">
+            <span class="owas-code">3</span>양팔 어깨 위
+          </button>
+        </div>
+
+        <div class="section-title">다리 (Legs) 코드</div>
+        <div class="owas-grid">
+          <button class="owas-btn" id="ol_1" onclick="setOWAS('legs',1)">
+            <span class="owas-code">1</span>앉기
+          </button>
+          <button class="owas-btn active" id="ol_2" onclick="setOWAS('legs',2)">
+            <span class="owas-code">2</span>양발 서기
+          </button>
+          <button class="owas-btn" id="ol_3" onclick="setOWAS('legs',3)">
+            <span class="owas-code">3</span>한발 서기
+          </button>
+          <button class="owas-btn" id="ol_4" onclick="setOWAS('legs',4)">
+            <span class="owas-code">4</span>양발 굽힘
+          </button>
+          <button class="owas-btn" id="ol_5" onclick="setOWAS('legs',5)">
+            <span class="owas-code">5</span>한발 굽힘
+          </button>
+          <button class="owas-btn" id="ol_6" onclick="setOWAS('legs',6)">
+            <span class="owas-code">6</span>무릎 굽힘
+          </button>
+          <button class="owas-btn" id="ol_7" onclick="setOWAS('legs',7)">
+            <span class="owas-code">7</span>걷기·이동
+          </button>
+        </div>
+
+        <div class="section-title" style="margin-top:4px;">하중 (Load) 코드</div>
+        <div class="owas-grid" style="grid-template-columns:repeat(3,1fr);">
+          <button class="owas-btn active" id="ow_1" onclick="setOWAS('load',1)">
+            <span class="owas-code">1</span>10kg 미만
+          </button>
+          <button class="owas-btn" id="ow_2" onclick="setOWAS('load',2)">
+            <span class="owas-code">2</span>10~20kg
+          </button>
+          <button class="owas-btn" id="ow_3" onclick="setOWAS('load',3)">
+            <span class="owas-code">3</span>20kg 초과
+          </button>
+        </div>
+
+        <div style="margin-top:12px;padding:10px;background:#f1f8f1;border-radius:8px;
+          font-family:var(--mono);font-size:14px;font-weight:700;text-align:center;
+          border:2px solid var(--border);">
+          OWAS 코드: <span id="owasCode" style="font-size:22px;color:var(--accent);">1-1-2-1</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 결과 섹션 -->
+  <div class="grid3">
+
+    <!-- NLE 결과 -->
+    <div class="card">
+      <div class="card-hd" style="background:#e8f5e9;">📊 NLE 결과</div>
+      <div class="card-body">
+        <div class="score-card" id="liCard">
+          <div class="score-num" id="liScore">--</div>
+          <div class="score-label">들기 지수 LI</div>
+          <div class="score-badge" id="liBadge">계산 전</div>
+        </div>
+
+        <div class="result-box" style="margin-top:12px;">
+          <div class="result-row">
+            <span class="result-key">권장 중량 한계 (RWL)</span>
+            <span class="result-val" id="nleRWL">-- kg</span>
+          </div>
+          <div class="result-row">
+            <span class="result-key">실제 무게 (L)</span>
+            <span class="result-val" id="nleL">-- kg</span>
+          </div>
+          <div class="result-row">
+            <span class="result-key">LI 판정</span>
+            <span class="result-val" id="nleJudge">--</span>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:14px;">계수별 분석</div>
+        <div id="nleFactors"></div>
+
+        <div class="result-box" style="margin-top:12px;border-left-color:#e37400;">
+          <div style="font-size:11px;font-weight:700;color:#e37400;margin-bottom:6px;">
+            KOSHA 판정 기준
+          </div>
+          <div style="font-size:11px;line-height:1.8;">
+            <span style="color:#188038;">● LI &lt; 1.0</span> → 안전<br/>
+            <span style="color:#f9ab00;">● 1.0 ≤ LI &lt; 2.0</span> → 일부 위험<br/>
+            <span style="color:#e37400;">● 2.0 ≤ LI &lt; 3.0</span> → 위험<br/>
+            <span style="color:#c5221f;">● LI ≥ 3.0</span> → 매우 위험
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OWAS 결과 -->
+    <div class="card">
+      <div class="card-hd" style="background:#e8f5e9;">📊 OWAS 결과</div>
+      <div class="card-body">
+        <div class="score-card" id="owasCard">
+          <div class="score-num" id="owasScore">--</div>
+          <div class="score-label">ACTION CATEGORY (AC)</div>
+          <div class="score-badge" id="owasBadge">계산 전</div>
+        </div>
+
+        <div class="result-box" style="margin-top:12px;">
+          <div class="result-row">
+            <span class="result-key">허리 코드</span>
+            <span class="result-val" id="owasBack">--</span>
+          </div>
+          <div class="result-row">
+            <span class="result-key">팔 코드</span>
+            <span class="result-val" id="owasArms">--</span>
+          </div>
+          <div class="result-row">
+            <span class="result-key">다리 코드</span>
+            <span class="result-val" id="owasLegs">--</span>
+          </div>
+          <div class="result-row">
+            <span class="result-key">하중 코드</span>
+            <span class="result-val" id="owasLoad">--</span>
+          </div>
+          <div class="result-row">
+            <span class="result-key">조치 내용</span>
+            <span class="result-val" id="owasAction" style="font-size:10px;">--</span>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:14px;">AC 해석표</div>
+        <table class="tbl">
+          <thead>
+            <tr><th>AC</th><th>의미</th><th>권고 조치</th></tr>
+          </thead>
+          <tbody>
+            <tr id="oac1"><td class="c1">1</td><td>정상 자세</td><td>개선 불필요</td></tr>
+            <tr id="oac2"><td class="c2">2</td><td>약간 위험</td><td>지속 관찰</td></tr>
+            <tr id="oac3"><td class="c3">3</td><td>위험</td><td>빠른 개선</td></tr>
+            <tr id="oac4"><td class="c4">4</td><td>매우 위험</td><td>즉각 개선</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 종합 판정 -->
+    <div class="card">
+      <div class="card-hd">🎯 종합 판정 + KOSHA</div>
+      <div class="card-body">
+        <div id="overallPanel" style="text-align:center;padding:16px;">
+          <div style="font-size:32px;margin-bottom:8px;">📋</div>
+          <div style="font-size:13px;color:var(--muted);">값을 입력하면<br/>종합 판정이 표시됩니다</div>
+        </div>
+
+        <div class="section-title" style="margin-top:14px;">KOSHA 관련 호수</div>
+        <table class="tbl">
+          <thead><tr><th>호수</th><th>기준</th><th>판정</th></tr></thead>
+          <tbody id="koshaTable"></tbody>
+        </table>
+
+        <div class="result-box" style="margin-top:12px;border-left-color:#1b5e20;">
+          <div style="font-size:11px;font-weight:700;margin-bottom:6px;">
+            📌 중량물 관련 주요 기준
+          </div>
+          <div style="font-size:11px;line-height:1.8;">
+            제8호: 25kg+ · 10회/일 이상<br/>
+            제9호: 10kg+ 극단자세 · 25회/일<br/>
+            제10호: 4.5kg+ · 분당 2회 · 2시간+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const syncVal2 = (sid, vid, unit) => {
+  $(vid).textContent = $(sid).value + unit;
+};
+
+// OWAS 상태
+const owasState = {back:1, arms:1, legs:2, load:1};
+
+function setOWAS(part, val) {
+  owasState[part] = val;
+  ['back','arms','legs','load'].forEach(p => {
+    const max = p==='back'?4:p==='arms'?3:p==='legs'?7:3;
+    for(let i=1;i<=max;i++){
+      const el = $(p==='back'?`ob_${i}`:p==='arms'?`oa_${i}`:p==='legs'?`ol_${i}`:`ow_${i}`);
+      if(el) el.classList.toggle('active', i===owasState[p]);
+    }
+  });
+  const code = `${owasState.back}-${owasState.arms}-${owasState.legs}-${owasState.load}`;
+  $('owasCode').textContent = code;
+  calcOWAS();
+}
+
+// OWAS Action Category 테이블 (Karhu 1977)
+const OWAS_TABLE = {
+  '1-1-1':1,'1-1-2':1,'1-1-3':1,'1-1-4':1,'1-1-5':1,'1-1-6':1,'1-1-7':1,
+  '1-2-1':1,'1-2-2':1,'1-2-3':1,'1-2-4':2,'1-2-5':2,'1-2-6':2,'1-2-7':1,
+  '1-3-1':1,'1-3-2':1,'1-3-3':1,'1-3-4':2,'1-3-5':2,'1-3-6':2,'1-3-7':1,
+  '2-1-1':2,'2-1-2':2,'2-1-3':2,'2-1-4':3,'2-1-5':3,'2-1-6':3,'2-1-7':2,
+  '2-2-1':2,'2-2-2':2,'2-2-3':2,'2-2-4':3,'2-2-5':3,'2-2-6':3,'2-2-7':2,
+  '2-3-1':2,'2-3-2':2,'2-3-3':2,'2-3-4':3,'2-3-5':3,'2-3-6':3,'2-3-7':2,
+  '3-1-1':1,'3-1-2':1,'3-1-3':1,'3-1-4':2,'3-1-5':2,'3-1-6':2,'3-1-7':1,
+  '3-2-1':2,'3-2-2':2,'3-2-3':2,'3-2-4':3,'3-2-5':3,'3-2-6':3,'3-2-7':2,
+  '3-3-1':2,'3-3-2':2,'3-3-3':2,'3-3-4':3,'3-3-5':3,'3-3-6':3,'3-3-7':2,
+  '4-1-1':2,'4-1-2':3,'4-1-3':3,'4-1-4':4,'4-1-5':4,'4-1-6':4,'4-1-7':4,
+  '4-2-1':3,'4-2-2':4,'4-2-3':4,'4-2-4':4,'4-2-5':4,'4-2-6':4,'4-2-7':4,
+  '4-3-1':4,'4-3-2':4,'4-3-3':4,'4-3-4':4,'4-3-5':4,'4-3-6':4,'4-3-7':4,
+};
+
+function calcOWAS() {
+  const {back, arms, legs, load} = owasState;
+  const key = `${back}-${arms}-${legs}`;
+  let ac = OWAS_TABLE[key] || 2;
+  // 하중에 따른 조정
+  if(load===2 && ac<3) ac = Math.min(ac+1, 4);
+  if(load===3) ac = Math.min(ac+1, 4);
+
+  const cols  = ['','#188038','#f9ab00','#e37400','#c5221f'];
+  const bgs   = ['','bg1','bg2','bg3','bg4'];
+  const acts  = ['','정상 자세 — 개선 불필요',
+    '약간 위험 — 지속적 관찰 필요',
+    '위험 — 가능한 빨리 개선 필요',
+    '매우 위험 — 즉각적인 개선 필요'];
+  const lbls  = ['','AC1 정상','AC2 주의','AC3 위험','AC4 즉각'];
+
+  $('owasScore').textContent = ac;
+  $('owasScore').style.color = cols[ac];
+  $('owasBadge').textContent = lbls[ac];
+  $('owasBadge').className   = 'score-badge ' + bgs[ac];
+  $('owasCard').className    = 'score-card '  + bgs[ac];
+  $('owasBack').textContent  = back + ' (' + ['','곧음','앞굽힘','비틀림','앞굽+비틀'][back] + ')';
+  $('owasArms').textContent  = arms + ' (' + ['','양팔아래','한팔위','양팔위'][arms] + ')';
+  $('owasLegs').textContent  = legs + ' (' + ['','앉기','양발','한발','양굽힘','한굽힘','무릎굽','걷기'][legs] + ')';
+  $('owasLoad').textContent  = load + ' (' + ['','<10kg','10~20kg','>20kg'][load] + ')';
+  $('owasAction').textContent= acts[ac];
+  $('owasAction').style.color= cols[ac];
+
+  // AC 테이블 하이라이트
+  for(let i=1;i<=4;i++){
+    const row = $(`oac${i}`);
+    if(row) row.style.background = i===ac ? cols[ac]+'22' : '';
+  }
+
+  updateOverall();
+}
+
+// FM (빈도 계수) 테이블
+const FM_TABLE = {
+  L: {0.2:1.00,0.5:0.97,1:0.94,2:0.91,3:0.88,4:0.84,5:0.80,6:0.75,7:0.70,9:0.52,11:0.37,13:0.00},
+  M: {0.2:0.95,0.5:0.92,1:0.88,2:0.84,3:0.79,4:0.72,5:0.60,6:0.50,7:0.42,9:0.35,11:0.27,13:0.00},
+  H: {0.2:0.85,0.5:0.81,1:0.75,2:0.65,3:0.55,4:0.45,5:0.35,6:0.27,7:0.22,9:0.18,11:0.15,13:0.00},
+};
+
+function calcNLE() {
+  const L   = parseFloat($('n_L').value);
+  const H   = parseFloat($('n_H').value);
+  const V   = parseFloat($('n_V').value);
+  const D   = parseFloat($('n_D').value) || 25;
+  const A   = parseFloat($('n_A').value);
+  const F   = parseFloat($('n_F').value);
+  const dur = $('n_dur').value;
+  const CM  = parseFloat($('n_CM').value);
+
+  // 계수 계산
+  const LC = 23;
+  const HM = Math.min(1, 25/H);
+  const VM = 1 - 0.003 * Math.abs(V - 75);
+  const DM = 0.82 + (4.5/Math.max(25,D));
+  const AM = 1 - 0.0032 * A;
+  const FM = FM_TABLE[dur]?.[F] ?? 0.95;
+
+  const RWL = LC * HM * VM * Math.max(0,DM) * Math.max(0,AM) * FM * CM;
+  const LI  = L / Math.max(0.1, RWL);
+
+  // 결과 표시
+  const liCol = LI<1?'#188038':LI<2?'#f9ab00':LI<3?'#e37400':'#c5221f';
+  const liBg  = LI<1?'bg1':LI<2?'bg2':LI<3?'bg3':'bg4';
+  const liLbl = LI<1?'안전':LI<2?'일부 위험':LI<3?'위험':'매우 위험';
+
+  $('liScore').textContent  = LI.toFixed(2);
+  $('liScore').style.color  = liCol;
+  $('liBadge').textContent  = liLbl;
+  $('liBadge').className    = 'score-badge ' + liBg;
+  $('liCard').className     = 'score-card '  + liBg;
+  $('nleRWL').textContent   = RWL.toFixed(2) + ' kg';
+  $('nleRWL').style.color   = liCol;
+  $('nleL').textContent     = L.toFixed(1) + ' kg';
+  $('nleJudge').textContent = liLbl;
+  $('nleJudge').style.color = liCol;
+
+  // 계수 시각화
+  const factors = [
+    {name:'LC (기준)', val:LC, max:23, unit:'kg'},
+    {name:'HM (수평)', val:HM, max:1, unit:''},
+    {name:'VM (수직)', val:Math.max(0,VM), max:1, unit:''},
+    {name:'DM (이동)', val:Math.max(0,DM), max:1, unit:''},
+    {name:'AM (비틀)', val:Math.max(0,AM), max:1, unit:''},
+    {name:'FM (빈도)', val:FM, max:1, unit:''},
+    {name:'CM (손잡)', val:CM, max:1, unit:''},
+  ];
+  $('nleFactors').innerHTML = factors.map(f => {
+    const pct = Math.round((f.name==='LC (기준)'?1:f.val/f.max)*100);
+    const col = pct>=80?'#188038':pct>=50?'#f9ab00':'#c5221f';
+    return `<div class="nle-factor">
+      <span class="nle-factor-name">${f.name}</span>
+      <div class="nle-factor-bar">
+        <div class="nle-factor-fill" style="width:${pct}%;background:${col};"></div>
+      </div>
+      <span class="nle-factor-val" style="color:${col};">
+        ${f.name==='LC (기준)'?LC:f.val.toFixed(3)}
+      </span>
+    </div>`;
+  }).join('');
+
+  // KOSHA 판정
+  const koshaItems = [
+    {no:'제8호', desc:'25kg+ · 10회/일', ok: L<25, cond:`L=${L}kg (${L>=25?'≥':'<'}25kg)`},
+    {no:'제9호', desc:'10kg+ 극단자세·25회/일', ok: L<10, cond:`L=${L}kg (${L>=10?'≥':'<'}10kg)`},
+    {no:'제10호',desc:'4.5kg+ · 분당2회 · 2h+', ok: !(L>=4.5&&F>=2), cond:`L=${L}kg, F=${F}/분`},
+  ];
+  $('koshaTable').innerHTML = koshaItems.map(item => `
+    <tr>
+      <td style="font-weight:700;">${item.no}</td>
+      <td style="font-size:10px;">${item.desc}</td>
+      <td style="font-weight:700;color:${item.ok?'#188038':'#c5221f'};">
+        ${item.ok?'✅ 해당없음':'⚠️ 해당가능'}<br/>
+        <span style="font-size:9px;color:var(--muted);">${item.cond}</span>
+      </td>
+    </tr>`).join('');
+
+  updateOverall();
+}
+
+function updateOverall() {
+  const li = parseFloat($('liScore').textContent)||0;
+  const ac = parseInt($('owasScore').textContent)||0;
+  if(!li||!ac) return;
+  const liLv = li<1?1:li<2?2:li<3?3:4;
+  const worst = Math.max(liLv, ac);
+  const cols = ['','#188038','#f9ab00','#e37400','#c5221f'];
+  const lbls = ['','안전','주의','위험','매우위험'];
+  const icons = ['','✅','⚠️','🚨','🚨'];
+  $('overallPanel').innerHTML = `
+    <div style="font-size:48px;margin-bottom:8px;">${icons[worst]}</div>
+    <div style="font-size:22px;font-weight:800;color:${cols[worst]};">${lbls[worst]}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px;">
+      NLE LI: ${li.toFixed(2)} · OWAS AC: ${ac}
+    </div>
+    <div style="margin-top:10px;font-size:11px;padding:8px;
+      background:${cols[worst]}22;border-radius:6px;
+      color:${cols[worst]};font-weight:700;">
+      ${worst>=4?'즉각적인 작업 중단 및 개선 조치 필요':
+        worst>=3?'가능한 빠른 개선 필요':
+        worst>=2?'지속적인 관찰 및 개선 검토':
+        '현재 작업 자세 허용 가능'}
+    </div>`;
+}
+
+// 초기 계산
+calcNLE();
+calcOWAS();
+</script>
+</body>
+</html>
