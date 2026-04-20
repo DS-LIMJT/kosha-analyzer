@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NLE · OWAS 영상 분석 툴</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<style>
+:root{--bg:#0a1a0e;--panel:#0f1f13;--panel2:#162a1b;--border:#1a3020;--border2:#254535;
+  --accent:#22c55e;--accent2:#15803d;--green:#22c55e;--yellow:#eab308;--orange:#f97316;--red:#ef4444;
+  --text:#e2e8f0;--muted:#64748b;--muted2:#94a3b8;--mono:'Courier New',monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);
+  font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.hdr{background:linear-gradient(90deg,#052e16,#166534);border-bottom:1px solid var(--border2);
+  padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.hdr-title{font-size:15px;font-weight:700;color:#fff;}
+.hdr-sub{font-size:10px;color:#86efac;font-family:var(--mono);}
+.badge{padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;font-family:var(--mono);border:1px solid;}
+.bg-green{background:rgba(34,197,94,.15);color:#4ade80;border-color:rgba(34,197,94,.3);}
+.bg-yellow{background:rgba(234,179,8,.15);color:#fde047;border-color:rgba(234,179,8,.3);}
+
+/* 상단 영상창 */
+.vid-section{flex-shrink:0;height:60vh;display:flex;border-bottom:2px solid var(--border2);}
+.vid-player{position:relative;flex:1;background:#020d05;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+#vidEl{width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .3s;}
+#skelCvs{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+.vid-ph{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;}
+.vid-ph-icon{font-size:72px;opacity:.25;}
+.vid-ph-text{font-family:var(--mono);font-size:15px;color:var(--muted);opacity:.65;line-height:2;}
+.ov-conf{position:absolute;top:10px;left:10px;z-index:10;background:rgba(0,0,0,.78);
+  border:1px solid rgba(34,197,94,.4);border-radius:6px;padding:5px 12px;
+  font-family:var(--mono);font-size:11px;font-weight:700;color:#4ade80;display:none;}
+.ov-nle{position:absolute;top:10px;right:10px;z-index:10;background:rgba(0,0,0,.82);
+  border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:10px 13px;
+  font-family:var(--mono);font-size:12px;line-height:2;display:none;}
+.ov-owas{position:absolute;bottom:10px;left:10px;z-index:10;background:rgba(0,0,0,.82);
+  border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:8px 14px;
+  font-family:var(--mono);display:none;}
+.ov-prog{position:absolute;bottom:0;left:0;right:0;z-index:10;background:rgba(0,0,0,.88);padding:8px 14px;display:none;}
+.prog-bar{height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;margin-top:4px;}
+.prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .2s;}
+
+/* 컨트롤 패널 */
+.vid-ctrl-panel{width:200px;background:#0a1a0e;border-left:1px solid var(--border);
+  display:flex;flex-direction:column;padding:12px;gap:8px;flex-shrink:0;}
+.ctrl-title{font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px;}
+.dropzone{border:2px dashed var(--border2);border-radius:8px;padding:14px 8px;text-align:center;cursor:pointer;transition:.2s;background:rgba(34,197,94,.02);}
+.dropzone:hover,.dropzone.dov{border-color:var(--accent);background:rgba(34,197,94,.06);}
+.sl-row{display:flex;align-items:center;gap:5px;}
+.sl-label{font-size:10px;color:var(--muted2);width:60px;flex-shrink:0;}
+.sl{flex:1;-webkit-appearance:none;height:3px;background:var(--border2);border-radius:2px;outline:none;}
+.sl::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--accent);cursor:pointer;}
+.sl-val{font-family:var(--mono);font-size:10px;font-weight:700;min-width:28px;text-align:right;}
+.btn{padding:9px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;transition:.2s;width:100%;}
+.btn-p{background:var(--accent);color:#000;}
+.btn-p:hover{background:var(--accent2);color:#fff;}
+.btn-p:disabled{background:var(--border2);color:var(--muted);cursor:not-allowed;}
+.btn-s{background:var(--panel2);color:var(--text);border:1px solid var(--border2);}
+.btn-d{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);}
+.file-info{background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:6px;padding:8px;font-family:var(--mono);font-size:10px;display:none;}
+
+/* 하단 */
+.bottom{flex:1;min-height:0;display:grid;grid-template-columns:270px 1fr 250px;overflow:hidden;}
+.lpanel,.rpanel{overflow-y:auto;background:var(--panel);}
+.lpanel{border-right:1px solid var(--border);}
+.rpanel{border-left:1px solid var(--border);}
+.cpanel{overflow-y:auto;background:var(--panel2);}
+.sec{padding:11px 13px;border-bottom:1px solid var(--border);}
+.sec-title{font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:4px;}
+.sec-title::before{content:'//';opacity:.4;}
+.sel{width:100%;padding:6px 8px;background:var(--panel2);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-size:12px;font-family:inherit;outline:none;margin-bottom:7px;}
+.sl-row2{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
+.sl-label2{font-size:11px;color:var(--muted2);width:90px;flex-shrink:0;}
+.sl-val2{font-family:var(--mono);font-size:11px;font-weight:700;min-width:36px;text-align:right;}
+.corr-row{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
+.corr-lbl{font-size:10px;color:var(--muted);width:72px;flex-shrink:0;}
+.corr-inp{width:55px;padding:4px 5px;background:var(--panel2);border:1px solid var(--border2);border-radius:4px;color:#fbbf24;font-family:var(--mono);font-size:11px;text-align:center;}
+.corr-auto{font-family:var(--mono);font-size:10px;color:var(--muted);min-width:38px;text-align:right;}
+.corr-diff{font-family:var(--mono);font-size:10px;font-weight:700;min-width:34px;text-align:right;}
+/* 결과 */
+.score-card{padding:14px;text-align:center;border-bottom:1px solid var(--border);}
+.score-tool{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;}
+.score-num{font-family:var(--mono);font-size:40px;font-weight:800;line-height:1.1;margin:4px 0;}
+.score-badge{display:inline-block;padding:3px 12px;border-radius:10px;font-size:11px;font-weight:700;border:1px solid;}
+.summary-card{margin:12px;background:var(--panel);border:1px solid var(--border2);border-radius:10px;overflow:hidden;}
+.summary-hd{padding:10px 14px;background:rgba(34,197,94,.08);border-bottom:1px solid var(--border2);font-family:var(--mono);font-size:10px;color:#4ade80;font-weight:700;letter-spacing:1px;}
+.summary-body{padding:12px 14px;}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);}
+.result-row:last-child{border:none;}
+.rkey{font-size:11px;color:var(--muted);}
+.rval{font-family:var(--mono);font-size:13px;font-weight:700;}
+.owas-parts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+.owas-part{text-align:center;background:var(--panel2);border-radius:6px;padding:8px 4px;border:1px solid var(--border2);}
+.owas-part-code{font-family:var(--mono);font-size:20px;font-weight:800;}
+.owas-part-name{font-size:9px;color:var(--muted);margin-top:2px;}
+.dist-sec{padding:10px 12px;border-bottom:1px solid var(--border);}
+.dist-row{display:flex;align-items:center;gap:5px;margin-bottom:4px;}
+.dist-lbl{font-size:10px;color:var(--muted);width:60px;flex-shrink:0;}
+.dist-track{flex:1;height:7px;background:var(--border2);border-radius:3px;overflow:hidden;}
+.dist-fill{height:100%;border-radius:3px;transition:.4s;}
+.dist-pct{font-family:var(--mono);font-size:10px;font-weight:700;min-width:30px;text-align:right;}
+.nle-factor{display:flex;align-items:center;gap:5px;padding:5px 12px;border-bottom:1px solid var(--border);}
+.nle-factor-name{font-size:10px;color:var(--muted2);width:65px;flex-shrink:0;font-family:var(--mono);}
+.nle-factor-bar{flex:1;height:5px;background:var(--border2);border-radius:3px;overflow:hidden;}
+.nle-factor-fill{height:100%;border-radius:3px;}
+.nle-factor-val{font-family:var(--mono);font-size:11px;font-weight:700;min-width:40px;text-align:right;}
+.tl-sec{padding:8px 12px;border-bottom:1px solid var(--border);}
+.tl-title{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;}
+.tl-track{height:16px;background:var(--border2);border-radius:3px;overflow:hidden;display:flex;}
+.status-bar{padding:7px 12px;font-family:var(--mono);font-size:10px;color:var(--muted);border-top:1px solid var(--border);background:var(--panel);}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span style="font-size:20px;">⚖️</span>
+    <div>
+      <div class="hdr-title">NLE · OWAS 영상 분석 툴</div>
+      <div class="hdr-sub">NIOSH Lifting Equation · Ovako Working Posture — KOSHA H-9-2018</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center;">
+    <span class="badge bg-green">MediaPipe v2</span>
+    <span class="badge bg-yellow">KOSHA 제8·9·10호</span>
+    <span class="badge bg-green" id="statusBadge">대기 중</span>
+  </div>
+</div>
+
+<!-- 상단 영상 분석 창 -->
+<div class="vid-section">
+  <div class="vid-player">
+    <video id="vidEl" playsinline muted></video>
+    <canvas id="skelCvs"></canvas>
+    <div class="vid-ph" id="vidPH">
+      <div class="vid-ph-icon">⚖️</div>
+      <div class="vid-ph-text">영상을 업로드하면 이 화면에<br/>관절 스켈레톤이 실시간으로 표시됩니다<br/><span style="color:var(--accent);font-size:12px;">NLE 거리 자동 추정 · OWAS 코드 자동 판정</span></div>
+    </div>
+    <div class="ov-conf" id="confBadge">🦴 관절 인식 중</div>
+    <div class="ov-nle" id="nleOverlay">
+      <div style="font-size:9px;color:var(--muted2);letter-spacing:1px;margin-bottom:3px;">// NLE 자동 추정</div>
+      <div>H <span id="ov_H" style="font-weight:700;color:#4ade80;">--cm</span></div>
+      <div>V <span id="ov_V" style="font-weight:700;color:#4ade80;">--cm</span></div>
+      <div>D <span id="ov_D" style="font-weight:700;color:#86efac;">--cm</span></div>
+      <div>A <span id="ov_A" style="font-weight:700;color:#86efac;">--°</span></div>
+      <div style="border-top:1px solid rgba(255,255,255,.1);margin-top:4px;padding-top:4px;">
+        LI <span id="ov_LI" style="font-weight:800;font-size:18px;color:#4ade80;">--</span></div>
+    </div>
+    <div class="ov-owas" id="owasOverlay">
+      <div style="font-size:9px;color:var(--muted2);letter-spacing:1px;margin-bottom:3px;">// OWAS 코드</div>
+      <div style="font-family:var(--mono);font-size:18px;font-weight:800;letter-spacing:4px;">
+        <span id="ov_back">-</span>-<span id="ov_arms">-</span>-<span id="ov_legs">-</span>-<span id="ov_load">-</span>
+        &nbsp;<span id="ov_ac" style="font-size:13px;padding:2px 8px;border-radius:4px;"></span>
+      </div>
+    </div>
+    <div class="ov-prog" id="progOverlay">
+      <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;">
+        <span id="progTxt">분석 중...</span><span id="progEta" style="color:var(--muted);">--</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%;"></div></div>
+    </div>
+  </div>
+
+  <div class="vid-ctrl-panel">
+    <div class="ctrl-title">영상 업로드</div>
+    <div class="dropzone" id="dropZone"
+      onclick="$('fileInp').click()"
+      ondragover="event.preventDefault();this.classList.add('dov')"
+      ondragleave="this.classList.remove('dov')"
+      ondrop="onDrop(event)">
+      <div style="font-size:22px;margin-bottom:5px;">📁</div>
+      <div id="dzText" style="font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1.6;">MP4 · MOV<br/>드래그 또는 클릭</div>
+    </div>
+    <input type="file" id="fileInp" accept="video/*" style="display:none" onchange="onFile(this.files[0])"/>
+    <div class="file-info" id="fileInfo">
+      <div id="fileName" style="color:#4ade80;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;"></div>
+      <div id="fileDur" style="color:var(--muted2);"></div>
+    </div>
+    <div class="ctrl-title" style="margin-top:4px;">분석 설정</div>
+    <div class="sl-row">
+      <span class="sl-label">FPS</span>
+      <input type="range" class="sl" id="cfg_fps" min="3" max="15" value="10" oninput="syncCfg()"/>
+      <span class="sl-val" id="cv_fps">10</span>
+    </div>
+    <div class="sl-row">
+      <span class="sl-label">카메라각도</span>
+      <input type="range" class="sl" id="cfg_cam" min="60" max="120" value="90" oninput="syncCfg()"/>
+      <span class="sl-val" id="cv_cam">90°</span>
+    </div>
+    <div class="sl-row">
+      <span class="sl-label">신장(cm)</span>
+      <input type="range" class="sl" id="cfg_height" min="150" max="200" value="170" oninput="syncCfg()"/>
+      <span class="sl-val" id="cv_height">170</span>
+    </div>
+    <button class="btn btn-p" id="btnAnalyze" disabled onclick="runAnalysis()">▶ NLE·OWAS 분석</button>
+    <button class="btn btn-d" id="btnStop" style="display:none;" onclick="stopAnalysis()">■ 중지</button>
+    <button class="btn btn-s" id="btnCSV" style="display:none;" onclick="exportCSV()">💾 CSV 저장</button>
+  </div>
+</div>
+
+<!-- 하단 -->
+<div class="bottom">
+  <div class="lpanel">
+    <div class="sec">
+      <div class="sec-title">NLE 수동 입력</div>
+      <label style="font-size:10px;color:var(--muted2);">실제 무게 L(kg)</label>
+      <div class="sl-row2" style="margin-bottom:7px;">
+        <input type="range" class="sl" id="n_L" min="1" max="50" step="0.5" value="10" style="flex:1;" oninput="syncNLE()"/>
+        <span class="sl-val2" id="nv_L">10kg</span>
+      </div>
+      <label style="font-size:10px;color:var(--muted2);">빈도 F(회/분)</label>
+      <select class="sel" id="n_F" onchange="recalcAll()">
+        <option value="0.5">0.5</option><option value="1" selected>1</option>
+        <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+      </select>
+      <label style="font-size:10px;color:var(--muted2);">지속시간</label>
+      <select class="sel" id="n_dur" onchange="recalcAll()">
+        <option value="L">1시간 미만</option><option value="M" selected>1~2시간</option><option value="H">2~8시간</option>
+      </select>
+      <label style="font-size:10px;color:var(--muted2);">커플링(손잡이)</label>
+      <select class="sel" id="n_CM" onchange="recalcAll()">
+        <option value="1.00">양호(1.00)</option><option value="0.95" selected>보통(0.95)</option><option value="0.90">불량(0.90)</option>
+      </select>
+    </div>
+    <div class="sec">
+      <div class="sec-title" style="color:#fbbf24;">전문가 보정 — NLE</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:7px;">영상 자동 추정 → 실측값 입력</div>
+      <div style="display:grid;grid-template-columns:72px 55px 44px 36px;gap:3px;font-size:9px;color:var(--muted);margin-bottom:4px;"><span>변수</span><span>실측</span><span>자동</span><span>차이</span></div>
+      <div id="corrPanel"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-title" style="color:#fbbf24;">전문가 보정 — OWAS</div>
+      <label style="font-size:10px;color:var(--muted2);">허리(Back)</label>
+      <select class="sel" id="co_back" onchange="recalcAll()"><option value="0">자동</option><option value="1">1-곧은자세</option><option value="2">2-앞굽힘</option><option value="3">3-비틀림</option><option value="4">4-앞굽+비틀</option></select>
+      <label style="font-size:10px;color:var(--muted2);">팔(Arms)</label>
+      <select class="sel" id="co_arms" onchange="recalcAll()"><option value="0">자동</option><option value="1">1-양팔아래</option><option value="2">2-한팔위</option><option value="3">3-양팔위</option></select>
+      <label style="font-size:10px;color:var(--muted2);">다리(Legs)</label>
+      <select class="sel" id="co_legs" onchange="recalcAll()"><option value="0">자동</option><option value="1">1-앉기</option><option value="2">2-양발서기</option><option value="3">3-한발서기</option><option value="4">4-양발굽힘</option><option value="5">5-한발굽힘</option><option value="6">6-무릎굽힘</option><option value="7">7-걷기</option></select>
+      <div style="display:flex;gap:5px;margin-top:4px;">
+        <button class="btn btn-s" style="font-size:11px;" onclick="resetCorr()">🔄 초기화</button>
+        <button class="btn btn-p" style="font-size:11px;" onclick="applyCorr()">✅ 적용</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cpanel">
+    <div class="summary-card">
+      <div class="summary-hd">// NLE 결과 요약</div>
+      <div class="summary-body">
+        <div style="text-align:center;padding:8px 0;">
+          <div style="font-family:var(--mono);font-size:44px;font-weight:800;" id="liNumC">--</div>
+          <div style="font-size:11px;color:var(--muted);margin:3px 0;">LI 평균 / 최고 <span id="liMaxC">--</span></div>
+          <div class="score-badge" id="liBadgeC" style="background:rgba(100,116,139,.1);color:var(--muted);border-color:var(--border);">대기 중</div>
+        </div>
+        <div class="result-row"><span class="rkey">권장 중량 한계 RWL</span><span class="rval" id="rwlC">-- kg</span></div>
+        <div class="result-row"><span class="rkey">HM (수평계수)</span><span class="rval" id="hmC">--</span></div>
+        <div class="result-row"><span class="rkey">VM (수직계수)</span><span class="rval" id="vmC">--</span></div>
+        <div class="result-row"><span class="rkey">판정</span><span class="rval" id="liJudgeC">--</span></div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-hd" style="background:rgba(234,179,8,.08);color:#fde047;">// OWAS 결과 요약</div>
+      <div class="summary-body">
+        <div style="text-align:center;padding:6px 0;">
+          <div style="font-family:var(--mono);font-size:44px;font-weight:800;" id="owasNumC">--</div>
+          <div class="score-badge" id="owasBadgeC" style="background:rgba(100,116,139,.1);color:var(--muted);border-color:var(--border);">대기 중</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:20px;font-weight:800;text-align:center;letter-spacing:4px;margin:8px 0;" id="owasCodeC">- - - -</div>
+        <div class="owas-parts">
+          <div class="owas-part"><div class="owas-part-code" id="opc_back">-</div><div class="owas-part-name">허리</div></div>
+          <div class="owas-part"><div class="owas-part-code" id="opc_arms">-</div><div class="owas-part-name">팔</div></div>
+          <div class="owas-part"><div class="owas-part-code" id="opc_legs">-</div><div class="owas-part-name">다리</div></div>
+          <div class="owas-part"><div class="owas-part-code" id="opc_load">-</div><div class="owas-part-name">하중</div></div>
+        </div>
+        <div class="result-row" style="margin-top:8px;"><span class="rkey">권고 조치</span><span class="rval" id="owasActionC" style="font-size:10px;">--</span></div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-hd" style="background:rgba(251,191,36,.08);color:#fbbf24;">// KOSHA 판정 + 보정 비교</div>
+      <div class="summary-body" id="koshaPanel">
+        <div style="font-size:11px;color:var(--muted);text-align:center;padding:8px;">분석 완료 후 표시</div>
+      </div>
+    </div>
+    <div class="status-bar" id="statusBar">분석 대기 중</div>
+  </div>
+
+  <div class="rpanel">
+    <div class="dist-sec">
+      <div class="tl-title">NLE LI 위험 구간 분포</div>
+      <div id="liDist"></div>
+    </div>
+    <div class="dist-sec">
+      <div class="tl-title">OWAS AC 분포</div>
+      <div id="owasDist"></div>
+    </div>
+    <div style="padding:8px 12px 4px;font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:1.5px;">// NLE 계수 (평균)</div>
+    <div id="nleFactors"></div>
+    <div class="tl-sec">
+      <div class="tl-title">LI 시간별 위험도</div>
+      <div class="tl-track" id="liTL"></div>
+      <div class="tl-title" style="margin-top:7px;">OWAS AC 시간별</div>
+      <div class="tl-track" id="owasTL"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const avg=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:0;
+const liCol=v=>v<1?'#22c55e':v<2?'#eab308':v<3?'#f97316':'#ef4444';
+const acCol=v=>v<=1?'#22c55e':v<=2?'#eab308':v<=3?'#f97316':'#ef4444';
+
+let _file=null,_allR=[],_running=false,_corrNLE={},_corrOWAS={};
+const NKEYS=['H','V','D','A'];const NLBLS={H:'H 수평(cm)',V:'V 수직(cm)',D:'D 이동(cm)',A:'A 비틀(°)'};
+
+function initCorrPanel(){
+  $('corrPanel').innerHTML=NKEYS.map(k=>`
+    <div class="corr-row">
+      <span class="corr-lbl">${NLBLS[k]}</span>
+      <input class="corr-inp" id="ci_${k}" type="number" step="0.5" placeholder="auto" oninput="recalcAll()"/>
+      <span class="corr-auto" id="ca_${k}">--</span>
+      <span class="corr-diff" id="cd_${k}">--</span>
+    </div>`).join('');
+}
+function resetCorr(){NKEYS.forEach(k=>{const e=$(`ci_${k}`);if(e)e.value='';});['back','arms','legs'].forEach(k=>{const e=$(`co_${k}`);if(e)e.value='0';});_corrNLE={};_corrOWAS={};recalcAll();}
+function applyCorr(){_corrNLE={};NKEYS.forEach(k=>{const v=parseFloat($(`ci_${k}`)?.value);if(!isNaN(v))_corrNLE[k]=v;});_corrOWAS={};['back','arms','legs'].forEach(k=>{const v=parseInt($(`co_${k}`)?.value);if(v>0)_corrOWAS[k]=v;});recalcAll();}
+function syncCfg(){$('cv_fps').textContent=$('cfg_fps').value;$('cv_cam').textContent=$('cfg_cam').value+'°';$('cv_height').textContent=$('cfg_height').value;}
+function syncNLE(){$('nv_L').textContent=$('n_L').value+'kg';recalcAll();}
+
+function onDrop(e){e.preventDefault();$('dropZone').classList.remove('dov');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('video/'))onFile(f);}
+function onFile(f){if(!f)return;_file=f;$('dzText').innerHTML=`<span style="color:#4ade80;font-weight:700;">✅ 업로드 완료</span>`;$('btnAnalyze').disabled=false;const vid=$('vidEl');vid.src=URL.createObjectURL(f);vid.style.opacity='1';$('vidPH').style.display='none';vid.onloadedmetadata=()=>{$('fileInfo').style.display='block';$('fileName').textContent=f.name;const m=Math.floor(vid.duration/60),s=Math.floor(vid.duration%60);$('fileDur').textContent=`${m}:${s.toString().padStart(2,'0')} · ${(f.size/1024/1024).toFixed(1)}MB`;};}
+
+function exJ(lm){const x=i=>lm[i]?.x||0,y=i=>lm[i]?.y||0,vis=i=>lm[i]?.visibility||0;const ang=(a,b,c)=>{const ba={x:x(a)-x(b),y:y(a)-y(b)},bc={x:x(c)-x(b),y:y(c)-y(b)};const dot=ba.x*bc.x+ba.y*bc.y,mag=Math.sqrt(ba.x**2+ba.y**2)*Math.sqrt(bc.x**2+bc.y**2);return mag>0?Math.acos(Math.max(-1,Math.min(1,dot/mag)))*180/Math.PI:0;};const side=vis(11)>=vis(12)?'L':'R';const sh=side==='L'?11:12,elb=side==='L'?13:14,wr=side==='L'?15:16,hip=side==='L'?23:24,kn=side==='L'?25:26,ank=side==='L'?27:28;const shMX=(x(11)+x(12))/2,shMY=(y(11)+y(12))/2,hMX=(x(23)+x(24))/2,hMY=(y(23)+y(24))/2;return{nk:Math.min(Math.abs(ang(0,sh,hip)),60),tr:Math.min(Math.abs(Math.atan2(shMX-hMX,-(shMY-hMY))*180/Math.PI),90),ua:Math.min(ang(hip,sh,elb),150),la:Math.min(ang(sh,elb,wr),150),w:Math.min(Math.abs(ang(elb,wr,side==='L'?17:18)),60),kn:Math.min(ang(hip,kn,ank),180),wr_x:x(wr),wr_y:y(wr),sh_y:y(sh),ank_y:y(ank),hMX,hMY,twist:Math.abs(x(11)-x(12))*100};}
+function correctCam(j){const alpha=(parseFloat($('cfg_cam').value)-90)*Math.PI/180;if(Math.abs(alpha)<0.05)return j;const c=v=>Math.atan(Math.tan(v*Math.PI/180)/Math.cos(alpha))*180/Math.PI;return{...j,nk:c(j.nk),tr:c(j.tr),ua:c(j.ua)};}
+
+function estimateNLE(j){const H_cm=parseFloat($('cfg_height').value)||170;const bodyH=Math.max(0.01,j.ank_y-j.sh_y);const scale=(H_cm*0.8)/bodyH;const H=Math.max(25,Math.min(63,Math.abs(j.wr_x-j.hMX)*scale*0.7));const V=Math.max(0,Math.min(175,(j.ank_y-j.wr_y)*scale));const A=Math.min(135,j.twist*2);return{H,V,A};}
+
+function extractOWAS(j,L){const back=j.tr<5?1:j.tr<20?(j.twist>15?3:1):j.tr<60?(j.twist>15?4:2):4;const arms=j.ua<30?1:j.ua<60?2:3;const legs=j.kn>160?2:j.kn>120?4:5;const load=L<10?1:L<=20?2:3;return{back,arms,legs,load};}
+
+const OWAS_T={'1-1-1':1,'1-1-2':1,'1-1-3':1,'1-1-4':1,'1-1-5':1,'1-1-6':1,'1-1-7':1,'1-2-1':1,'1-2-2':1,'1-2-3':1,'1-2-4':2,'1-2-5':2,'1-2-6':2,'1-2-7':1,'1-3-1':1,'1-3-2':1,'1-3-3':1,'1-3-4':2,'1-3-5':2,'1-3-6':2,'1-3-7':1,'2-1-1':2,'2-1-2':2,'2-1-3':2,'2-1-4':3,'2-1-5':3,'2-1-6':3,'2-1-7':2,'2-2-1':2,'2-2-2':2,'2-2-3':2,'2-2-4':3,'2-2-5':3,'2-2-6':3,'2-2-7':2,'2-3-1':2,'2-3-2':2,'2-3-3':2,'2-3-4':3,'2-3-5':3,'2-3-6':3,'2-3-7':2,'3-1-1':1,'3-1-2':1,'3-1-3':1,'3-1-4':2,'3-1-5':2,'3-1-6':2,'3-1-7':1,'3-2-1':2,'3-2-2':2,'3-2-3':2,'3-2-4':3,'3-2-5':3,'3-2-6':3,'3-2-7':2,'3-3-1':2,'3-3-2':2,'3-3-3':2,'3-3-4':3,'3-3-5':3,'3-3-6':3,'3-3-7':2,'4-1-1':2,'4-1-2':3,'4-1-3':3,'4-1-4':4,'4-1-5':4,'4-1-6':4,'4-1-7':4,'4-2-1':3,'4-2-2':4,'4-2-3':4,'4-2-4':4,'4-2-5':4,'4-2-6':4,'4-2-7':4,'4-3-1':4,'4-3-2':4,'4-3-3':4,'4-3-4':4,'4-3-5':4,'4-3-6':4,'4-3-7':4};
+function getAC(b,a,l,ld){let ac=OWAS_T[`${b}-${a}-${l}`]||2;if(ld===2&&ac<3)ac=Math.min(ac+1,4);if(ld===3)ac=Math.min(ac+1,4);return ac;}
+
+const FM_T={L:{0.5:0.97,1:0.94,2:0.91,3:0.88,4:0.84,5:0.80},M:{0.5:0.92,1:0.88,2:0.84,3:0.79,4:0.72,5:0.60},H:{0.5:0.81,1:0.75,2:0.65,3:0.55,4:0.45,5:0.35}};
+function calcNLE(H,V,D,A){const L=parseFloat($('n_L').value)||10,F=parseFloat($('n_F').value)||1,dur=$('n_dur').value||'M',CM=parseFloat($('n_CM').value)||0.95,LC=23;const HM=Math.min(1,25/Math.max(25,H)),VM=Math.max(0,1-0.003*Math.abs(V-75)),DM=Math.max(0,0.82+4.5/Math.max(25,D||50)),AM=Math.max(0,1-0.0032*A),FM_val=FM_T[dur]?.[F]||0.80;const RWL=LC*HM*VM*DM*AM*FM_val*CM;return{LI:L/Math.max(0.1,RWL),RWL,HM,VM,DM,AM,FM:FM_val,CM};}
+
+function recalcAll(){
+  syncNLE();if(!_allR.length)return;
+  const L=parseFloat($('n_L').value)||10;
+  _allR.filter(r=>r.detected).forEach(r=>{
+    const H=_corrNLE.H??r.nle_auto.H,V=_corrNLE.V??r.nle_auto.V,D=_corrNLE.D??r.nle_auto.D,A=_corrNLE.A??r.nle_auto.A;
+    r.nleC=calcNLE(H,V,D,A);
+    const back=_corrOWAS.back??r.owas_auto.back,arms=_corrOWAS.arms??r.owas_auto.arms,legs=_corrOWAS.legs??r.owas_auto.legs,load=r.owas_auto.load;
+    r.owasC={back,arms,legs,load,ac:getAC(back,arms,legs,load)};
+  });updateResults();
+}
+
+function getVideoBounds(vid,sc){const vW=vid.videoWidth||640,vH=vid.videoHeight||360,dW=sc.clientWidth||640,dH=sc.clientHeight||360,vA=vW/vH,dA=dW/dH;let w,h,x,y;if(vA>dA){w=dW;h=dW/vA;x=0;y=(dH-h)/2;}else{h=dH;w=dH*vA;x=(dW-w)/2;y=0;}return{x,y,w,h};}
+function drawSkel(ctx,lm,W,H,b){if(!lm||!lm.length)return;const bx=b?b.x:0,by=b?b.y:0,bw=b?b.w:W,bh=b?b.h:H;const px=i=>bx+(lm[i]?.x||0)*bw,py=i=>by+(lm[i]?.y||0)*bh,vis=i=>lm[i]?.visibility||0;const cs=[[11,12],[11,23],[12,24],[23,24],[11,13],[13,15],[12,14],[14,16],[23,25],[25,27],[24,26],[26,28],[0,11],[0,12]];ctx.lineWidth=2.5;cs.forEach(([a,c])=>{if(vis(a)<0.3||vis(c)<0.3)return;ctx.beginPath();ctx.moveTo(px(a),py(a));ctx.lineTo(px(c),py(c));ctx.strokeStyle='rgba(74,222,128,.75)';ctx.stroke();});[0,11,12,13,14,15,16,23,24,25,26,27,28].forEach(i=>{if(vis(i)<0.3)return;ctx.beginPath();ctx.arc(px(i),py(i),5,0,Math.PI*2);ctx.fillStyle='#22c55e';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();});
+// H 거리 시각화
+if(vis(15)>0.4&&vis(23)>0.4&&vis(24)>0.4){const hx=bx+((lm[23]?.x||0)+(lm[24]?.x||0))/2*bw,wy=py(15);ctx.beginPath();ctx.moveTo(hx,wy);ctx.lineTo(px(15),wy);ctx.strokeStyle='rgba(251,191,36,.75)';ctx.lineWidth=2;ctx.setLineDash([5,3]);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#fbbf24';ctx.font='bold 11px monospace';ctx.fillText('H',Math.min(hx,px(15))+4,wy-5);}
+const det=lm.filter(p=>p.visibility>0.5).length;ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(8,H-26,125,18);ctx.fillStyle='#4ade80';ctx.font='bold 11px monospace';ctx.fillText(`관절인식 ${det}/33`,12,H-11);}
+
+async function runAnalysis(){
+  if(!_file||_running)return;_running=true;_allR=[];
+  $('btnAnalyze').disabled=true;$('btnStop').style.display='block';$('btnCSV').style.display='none';
+  $('statusBadge').textContent='분석 중';$('statusBadge').className='badge bg-yellow';
+  $('progOverlay').style.display='block';$('nleOverlay').style.display='block';
+  $('owasOverlay').style.display='block';$('confBadge').style.display='block';
+  const vid=$('vidEl'),sc=$('skelCvs');
+  vid.src=URL.createObjectURL(_file);vid.loop=false;vid.muted=true;vid.style.opacity='1';$('vidPH').style.display='none';
+  const pose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+  const conf=parseFloat(document.getElementById('cfg_conf')?.value||$('cfg_cam').value/200)||0.7;
+  pose.setOptions({modelComplexity:2,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
+  let prevV=null;
+  pose.onResults(res=>{
+    const lm=res.poseLandmarks,t=vid.currentTime;
+    if(sc){const W=sc.width=sc.clientWidth||640,H=sc.height=sc.clientHeight||360;const ctx=sc.getContext('2d');ctx.clearRect(0,0,W,H);if(lm){const b=getVideoBounds(vid,sc);drawSkel(ctx,lm,W,H,b);}}
+    if(!lm){_allR.push({time:t,detected:false});return;}
+    let j=exJ(lm);j=correctCam(j);
+    const L=parseFloat($('n_L').value)||10;
+    const na=estimateNLE(j);
+    na.D=prevV!==null?Math.max(10,Math.abs(na.V-prevV)*50+20):50; prevV=na.V;
+    const oa=extractOWAS(j,L),oa_ac=getAC(oa.back,oa.arms,oa.legs,oa.load);
+    const H=_corrNLE.H??na.H,V=_corrNLE.V??na.V,D=_corrNLE.D??na.D,A=_corrNLE.A??na.A;
+    const nleC=calcNLE(H,V,D,A);
+    const back=_corrOWAS.back??oa.back,arms=_corrOWAS.arms??oa.arms,legs=_corrOWAS.legs??oa.legs;
+    const owasC={back,arms,legs,load:oa.load,ac:getAC(back,arms,legs,oa.load)};
+    _allR.push({time:t,detected:true,joints:j,nle_auto:na,owas_auto:oa,owas_ac_auto:oa_ac,nleC,owasC});
+    $('ov_H').textContent=na.H.toFixed(1)+'cm';$('ov_V').textContent=na.V.toFixed(1)+'cm';
+    $('ov_D').textContent=na.D.toFixed(1)+'cm';$('ov_A').textContent=na.A.toFixed(1)+'°';
+    $('ov_LI').textContent=nleC.LI.toFixed(2);$('ov_LI').style.color=liCol(nleC.LI);
+    $('ov_back').textContent=owasC.back;$('ov_arms').textContent=owasC.arms;
+    $('ov_legs').textContent=owasC.legs;$('ov_load').textContent=owasC.load;
+    const acE=$('ov_ac');acE.textContent=`AC${owasC.ac}`;acE.style.background=acCol(owasC.ac)+'33';acE.style.color=acCol(owasC.ac);
+    NKEYS.forEach(k=>{const ca=$(`ca_${k}`);if(ca)ca.textContent=(na[k]||0).toFixed(1);});
+  });
+  await new Promise(r=>{vid.onloadedmetadata=r;vid.onerror=r;});
+  const dur=vid.duration||10,fps=parseInt($('cfg_fps').value)||10,total=Math.floor(dur*fps),tS=Date.now();
+  for(let i=0;i<total&&_running;i++){
+    vid.currentTime=i/fps;
+    await new Promise(r=>{const fn=()=>{vid.removeEventListener('seeked',fn);r();};vid.addEventListener('seeked',fn);setTimeout(r,500);});
+    try{await pose.send({image:vid});}catch(e){}
+    const pct=Math.round((i+1)/total*100);$('progFill').style.width=pct+'%';$('progTxt').textContent=`${pct}% · ${i+1}/${total} 프레임`;
+    const el=(Date.now()-tS)/1000,eta=el/((i+1)/total)-el;$('progEta').textContent=`ETA ${eta.toFixed(0)}s`;
+    if(i%10===0)await new Promise(r=>setTimeout(r,0));
+  }
+  _running=false;$('btnAnalyze').disabled=false;$('btnStop').style.display='none';$('btnCSV').style.display='block';$('progOverlay').style.display='none';$('statusBadge').textContent='분석 완료';$('statusBadge').className='badge bg-green';updateResults();
+}
+function stopAnalysis(){_running=false;$('btnStop').style.display='none';$('btnAnalyze').disabled=false;$('progOverlay').style.display='none';$('statusBadge').textContent='중단됨';if(_allR.filter(r=>r.detected).length>5)updateResults();}
+
+function updateResults(){
+  const valid=_allR.filter(r=>r.detected);if(!valid.length)return;
+  const liVals=valid.map(r=>r.nleC.LI),acVals=valid.map(r=>r.owasC.ac);
+  const avgLI=avg(liVals),mxLI=Math.max(...liVals),avgAC=avg(acVals),mxAC=Math.max(...acVals);
+  // LI 카드
+  $('liNumC').textContent=avgLI.toFixed(2);$('liNumC').style.color=liCol(avgLI);$('liMaxC').textContent=mxLI.toFixed(2);
+  const liL=avgLI<1?'안전':avgLI<2?'일부위험':avgLI<3?'위험':'매우위험';
+  $('liBadgeC').textContent=liL;$('liBadgeC').style.cssText=`background:${liCol(avgLI)}22;color:${liCol(avgLI)};border-color:${liCol(avgLI)}55;`;
+  const avgRWL=avg(valid.map(r=>r.nleC.RWL));
+  $('rwlC').textContent=avgRWL.toFixed(2)+' kg';$('rwlC').style.color=liCol(avgLI);
+  $('hmC').textContent=avg(valid.map(r=>r.nleC.HM)).toFixed(3);
+  $('vmC').textContent=avg(valid.map(r=>r.nleC.VM)).toFixed(3);
+  $('liJudgeC').textContent=liL;$('liJudgeC').style.color=liCol(avgLI);
+  // OWAS 카드
+  $('owasNumC').textContent=Math.round(avgAC);$('owasNumC').style.color=acCol(avgAC);
+  const acL=avgAC<=1?'AC1-정상':avgAC<=2?'AC2-주의':avgAC<=3?'AC3-위험':'AC4-즉각';
+  $('owasBadgeC').textContent=acL;$('owasBadgeC').style.cssText=`background:${acCol(avgAC)}22;color:${acCol(avgAC)};border-color:${acCol(avgAC)}55;`;
+  const mode=arr=>{const f={};arr.forEach(v=>{f[v]=(f[v]||0)+1;});return parseInt(Object.entries(f).sort((a,b)=>b[1]-a[1])[0]?.[0]||2);};
+  const mb=mode(valid.map(r=>r.owasC.back)),ma=mode(valid.map(r=>r.owasC.arms)),ml=mode(valid.map(r=>r.owasC.legs)),mld=mode(valid.map(r=>r.owasC.load));
+  const mc=acCol(getAC(mb,ma,ml,mld));
+  $('owasCodeC').textContent=`${mb} - ${ma} - ${ml} - ${mld}`;$('owasCodeC').style.color=mc;
+  $('opc_back').textContent=mb;$('opc_back').style.color=mc;$('opc_arms').textContent=ma;$('opc_arms').style.color=mc;
+  $('opc_legs').textContent=ml;$('opc_legs').style.color=mc;$('opc_load').textContent=mld;$('opc_load').style.color=mc;
+  $('owasActionC').textContent=avgAC<=1?'정상 — 개선 불필요':avgAC<=2?'약간위험 — 지속 관찰':avgAC<=3?'위험 — 빠른 개선':'즉각 개선 필요';$('owasActionC').style.color=acCol(avgAC);
+  // 분포
+  const liD=[{min:0,max:1,l:'안전(<1)',c:'#22c55e'},{min:1,max:2,l:'일부위험',c:'#eab308'},{min:2,max:3,l:'위험',c:'#f97316'},{min:3,max:99,l:'매우위험',c:'#ef4444'}];
+  $('liDist').innerHTML=liD.map(d=>{const n=liVals.filter(v=>v>=d.min&&v<d.max).length,p=valid.length?(n/valid.length*100).toFixed(0):0;return`<div class="dist-row"><span class="dist-lbl" style="color:${d.c};">${d.l}</span><div class="dist-track"><div class="dist-fill" style="width:${p}%;background:${d.c};"></div></div><span class="dist-pct" style="color:${d.c};">${p}%</span></div>`;}).join('');
+  const acD=[{v:1,l:'AC1 정상',c:'#22c55e'},{v:2,l:'AC2 주의',c:'#eab308'},{v:3,l:'AC3 위험',c:'#f97316'},{v:4,l:'AC4 즉각',c:'#ef4444'}];
+  $('owasDist').innerHTML=acD.map(d=>{const n=acVals.filter(v=>v===d.v).length,p=valid.length?(n/valid.length*100).toFixed(0):0;return`<div class="dist-row"><span class="dist-lbl" style="color:${d.c};">${d.l}</span><div class="dist-track"><div class="dist-fill" style="width:${p}%;background:${d.c};"></div></div><span class="dist-pct" style="color:${d.c};">${p}%</span></div>`;}).join('');
+  // 계수
+  const facs=[{n:'HM(수평)',v:avg(valid.map(r=>r.nleC.HM))},{n:'VM(수직)',v:avg(valid.map(r=>r.nleC.VM))},{n:'DM(이동)',v:avg(valid.map(r=>r.nleC.DM))},{n:'AM(비틀)',v:avg(valid.map(r=>r.nleC.AM))},{n:'FM(빈도)',v:valid[0]?.nleC.FM||0.88},{n:'CM(손잡)',v:valid[0]?.nleC.CM||0.95}];
+  $('nleFactors').innerHTML=facs.map(f=>{const pct=Math.round(f.v*100),col=pct>=80?'#22c55e':pct>=60?'#eab308':'#f97316';return`<div class="nle-factor"><span class="nle-factor-name">${f.n}</span><div class="nle-factor-bar"><div class="nle-factor-fill" style="width:${pct}%;background:${col};"></div></div><span class="nle-factor-val" style="color:${col};">${f.v.toFixed(3)}</span></div>`;}).join('');
+  // KOSHA + 보정
+  const L=parseFloat($('n_L').value)||10,F=parseFloat($('n_F').value)||1;
+  const autoLI=avg(valid.map(r=>calcNLE(r.nle_auto.H,r.nle_auto.V,r.nle_auto.D||50,r.nle_auto.A).LI));
+  const autoAC=avg(valid.map(r=>r.owas_ac_auto));
+  $('koshaPanel').innerHTML=`
+    <div class="result-row"><span class="rkey">제8호 (25kg+ 10회)</span><span class="rval" style="color:${L<25?'#22c55e':'#ef4444'};">${L<25?'✅ 해당없음':'⚠️ 해당가능'}</span></div>
+    <div class="result-row"><span class="rkey">제9호 (10kg+ 극단)</span><span class="rval" style="color:${L<10?'#22c55e':'#ef4444'};">${L<10?'✅ 해당없음':'⚠️ 해당가능'}</span></div>
+    <div class="result-row"><span class="rkey">제10호 (4.5kg+ 2/분)</span><span class="rval" style="color:${!(L>=4.5&&F>=2)?'#22c55e':'#ef4444'};">${!(L>=4.5&&F>=2)?'✅ 해당없음':'⚠️ 해당가능'}</span></div>
+    ${Object.keys(_corrNLE).length>0||Object.keys(_corrOWAS).length>0?`
+    <div style="height:6px;"></div>
+    <div class="result-row"><span class="rkey">LI 보정 전→후</span><span class="rval">
+      <span style="color:var(--muted);font-size:11px;">${autoLI.toFixed(2)} → </span>
+      <span style="color:${liCol(avgLI)};">${avgLI.toFixed(2)}</span>
+      <span style="color:${avgLI<autoLI?'#22c55e':'#f97316'};font-size:10px;"> (${avgLI<autoLI?'':'+'}${(avgLI-autoLI).toFixed(2)})</span></span></div>
+    <div class="result-row"><span class="rkey">AC 보정 전→후</span><span class="rval">
+      <span style="color:var(--muted);font-size:11px;">${autoAC.toFixed(1)} → </span>
+      <span style="color:${acCol(avgAC)};">${avgAC.toFixed(1)}</span>
+      <span style="color:${avgAC<autoAC?'#22c55e':'#f97316'};font-size:10px;"> (${avgAC<autoAC?'':'+'}${(avgAC-autoAC).toFixed(1)})</span></span></div>`:''}`;
+  // 타임라인
+  const step=Math.max(1,Math.floor(valid.length/80));
+  $('liTL').innerHTML=valid.filter((_,i)=>i%step===0).map(r=>`<div class="tl-seg" style="flex:1;background:${liCol(r.nleC.LI)};opacity:.85;"></div>`).join('');
+  $('owasTL').innerHTML=valid.filter((_,i)=>i%step===0).map(r=>`<div class="tl-seg" style="flex:1;background:${acCol(r.owasC.ac)};opacity:.85;"></div>`).join('');
+  $('statusBar').textContent=`완료 · ${valid.length}프레임 · LI ${avgLI.toFixed(2)} · AC ${avgAC.toFixed(1)} · RWL ${avgRWL.toFixed(1)}kg`;
+}
+
+function exportCSV(){
+  const valid=_allR.filter(r=>r.detected);if(!valid.length)return;
+  const hdr=['시각(s)','H(cm)','V(cm)','D(cm)','A(°)','LI(자동)','LI(보정)','RWL','OWAS_AC(자동)','OWAS_AC(보정)'].join(',');
+  const rows=valid.map(r=>[r.time.toFixed(2),(r.nle_auto.H||0).toFixed(2),(r.nle_auto.V||0).toFixed(2),(r.nle_auto.D||50).toFixed(2),(r.nle_auto.A||0).toFixed(2),calcNLE(r.nle_auto.H,r.nle_auto.V,r.nle_auto.D||50,r.nle_auto.A).LI.toFixed(3),r.nleC.LI.toFixed(3),r.nleC.RWL.toFixed(2),r.owas_ac_auto,r.owasC.ac].join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+hdr+'\n'+rows],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`nle_owas_${new Date().toISOString().split('T')[0]}.csv`;a.click();
+}
+
+initCorrPanel();
+</script>
+</body>
+</html>
